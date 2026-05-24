@@ -47,3 +47,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+/data/raw/         # if data is large or non-redistributable
+/renv/library/     # if using renv
