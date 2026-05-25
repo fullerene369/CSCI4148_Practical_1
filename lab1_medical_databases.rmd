@@ -53,6 +53,55 @@ We simplify the temporal problem to a static one by taking one random hourly rec
 
 **Q1. (2 marks)** Look up the [PhysioNet variable descriptions](https://physionet.org/content/challenge-2019/1.0.0/) and include an explanation of the dataset into this notebook (one row per variable: name, description, units).  
 
+| Variable | Description | Units |
+|---|---|---|
+| HR | Heart rate | Beats per minute |
+| O2Sat | Pulse oximetry oxygen saturation | % |
+| Temp | Body temperature | Degrees Celsius |
+| SBP | Systolic blood pressure | mm Hg |
+| MAP | Mean arterial pressure | mm Hg |
+| DBP | Diastolic blood pressure | mm Hg |
+| Resp | Respiration rate | Breaths per minute |
+| EtCO2 | End tidal carbon dioxide | mm Hg |
+| BaseExcess | Excess bicarbonate / base excess | mmol/L |
+| HCO3 | Bicarbonate | mmol/L |
+| FiO2 | Fraction of inspired oxygen | % |
+| pH | Blood pH | Unitless |
+| PaCO2 | Partial pressure of arterial carbon dioxide | mm Hg |
+| SaO2 | Arterial oxygen saturation | % |
+| AST | Aspartate transaminase | IU/L |
+| BUN | Blood urea nitrogen | mg/dL |
+| Alkalinephos | Alkaline phosphatase | IU/L |
+| Calcium | Serum calcium | mg/dL |
+| Chloride | Serum chloride | mmol/L |
+| Creatinine | Serum creatinine | mg/dL |
+| Bilirubin_direct | Direct bilirubin | mg/dL |
+| Glucose | Serum glucose | mg/dL |
+| Lactate | Lactic acid / lactate | mg/dL |
+| Magnesium | Serum magnesium | mmol/dL |
+| Phosphate | Serum phosphate | mg/dL |
+| Potassium | Serum potassium | mmol/L |
+| Bilirubin_total | Total bilirubin | mg/dL |
+| TroponinI | Troponin I | ng/mL |
+| Hct | Hematocrit | % |
+| Hgb | Hemoglobin | g/dL |
+| PTT | Partial thromboplastin time | Seconds |
+| WBC | White blood cell / leukocyte count | count/L |
+| Fibrinogen | Fibrinogen concentration | mg/dL |
+| Platelets | Platelet count | count/mL |
+| Age | Patient age | Years |
+| Gender | Patient sex, female = 0, male = 1 | Binary indicator |
+| Unit1 | ICU unit identifier, MICU | Binary indicator |
+| Unit2 | ICU unit identifier, SICU | Binary indicator |
+| HospAdmTime | Time between hospital admission and ICU admission | Hours |
+| ICULOS | ICU length of stay | Hours |
+| SepsisLabel | Sepsis outcome label; for septic patients, 1 from up to 6 hours before sepsis onset, otherwise 0 | Binary label |
+
+
+
+
+
+
 **Q2. (2 marks)** Then choose **three variables** you hypothesise might be strong predictors of sepsis and write one sentence each explaining your reasoning.  There is no right or wrong answer to this, but you should think about your and problem before diving into the EDA and prediction!
 *(Hint: look up how sepsis is clinically diagnosed.)*  
 
