@@ -105,6 +105,20 @@ We simplify the temporal problem to a static one by taking one random hourly rec
 **Q2. (2 marks)** Then choose **three variables** you hypothesise might be strong predictors of sepsis and write one sentence each explaining your reasoning.  There is no right or wrong answer to this, but you should think about your and problem before diving into the EDA and prediction!
 *(Hint: look up how sepsis is clinically diagnosed.)*  
 
+
+I think Lactate may be a strong predictor because lactate rising is associated with septic shock
+
+
+I think MAP may be a strong predictor because low mean arterial pressure is the concern of sepsis
+
+
+I think WBC may be a strong predictor because if white blood cell rise, it means inflammation
+
+
+
+
+
+
 ---
 
 ## 2 Data Loading and Splitting
@@ -154,6 +168,10 @@ cat("Test rows:    ", nrow(test),  "\n")
 
 **Q3. (1 mark)** What percentage of our dataset is being assigned to test?
 
+25% is being assigned to test
+
+
+
 --- 
 
 ## 3 Exploratory Data Analysis
@@ -167,28 +185,37 @@ Again, do your EDA on `train` only - we do not look at `test` until Section 6.
 `count()` tallies rows per group; add a `prop` column to show each class as a fraction of the total.
 
 ```{r q4-class-balance}
-#train |>
-#  count(___) |>
-#  mutate(prop = ___ / sum(___))
+train |>
+  count(SepsisLabel) |>
+  mutate(prop = n / sum(n))
 ```
 
 
 **Q5. (2 mark)** Using your solution to Q4, complete this plotting code to create a barplot of the relative sepsis label balance.  Change the colour of the sepsis bar to green.
 
 ```{r class-balance-plot, fig.height = 2.8}
-#code from your answer to Q3,
-#     |>
-#  ggplot(aes(SepsisLabel, prop, fill = SepsisLabel)) +
-#  geom_col() +
-#  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)), vjust = -0.4) +
-#  scale_y_continuous(labels = scales::percent) +
-#  scale_fill_manual(values = c("No Sepsis" = "grey60", 
-#                               "Sepsis"    = "firebrick")) +
-#  labs(x = NULL, y = "Percentage of Trainining Data", title = "Sepsis Class Balance") +
-#  theme(legend.position = "none")
+train |>
+  count(SepsisLabel) |>
+  mutate(prop = n / sum(n)) |>
+  ggplot(aes(SepsisLabel, prop, fill = SepsisLabel)) +
+  geom_col() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)), vjust = -0.4) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("No Sepsis" = "grey60", 
+                               "Sepsis"    = "green")) +
+  labs(x = NULL, y = "Percentage of Training Data", title = "Sepsis Class Balance") +
+  theme(legend.position = "none")
 ```
 
 **Q6. (3 marks)**  Given the class imbalance, which of the following 2 metrics might be the most misleading and why? accuracy, precision, recall, F1-score, ROC-AUC, PR-AUC?
+
+Accuracy might be the most misleading
+
+because if most patients don't have sepsis, the model can just say no sepsis for most people and achieve high accuracy and miss many true cases.
+
+
+
+
 
 ### 3.2 Missingness
 
@@ -208,10 +235,32 @@ train |>
 **Q7. (1 mark)**
 Modify the above to plot only missingness for Sepsis positive data
 ```{r missingness-sepsis-bar, fig.height = 5}
-# add your code
+train |>
+  filter(SepsisLabel == "Sepsis") |>
+  summarise(across(everything(), ~ mean(is.na(.x)))) |>
+  pivot_longer(everything(),
+               names_to = "variable", values_to = "pct_missing") |>
+  filter(pct_missing > 0) |>
+  ggplot(aes(pct_missing, fct_reorder(variable, pct_missing))) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(title = "Missing data by variable (sepsis-positive training set)",
+       x = "Percent missing", y = NULL)
+
 ```
 
 **Q8. (3 marks)** Which three variables have the highest missingness? In an ICU context, why might a lab value be missing - is this likely to be random, or informative? Does this mean you should drop or impute these values?
+
+TroponinI, Fibrinogen, and Bilirubin_direct have the highest missingness
+
+the reason might be the doctor does not measure this for the patient so it is not random. 
+
+
+
+i think we should not drop or impute because we should not modify the original data. 
+
+
+
 
 
 ### 3.3 Vital-sign distributions by outcome
@@ -235,6 +284,28 @@ train |>
 **Q9 (2 marks).** Modify the code above to plot the distribution of **three other lab variables** of your choice. 
 
 ```{r q9-lab-density}
+labs <- c("Lactate", "WBC", "Creatinine")
+
+train |>
+  select(all_of(labs), SepsisLabel) |>
+  pivot_longer(-SepsisLabel) |>
+  filter(!is.na(value)) |>
+  ggplot(aes(value, fill = SepsisLabel)) +
+  geom_density(alpha = 0.55, colour = NA) +
+  facet_wrap(~ name, scales = "free", ncol = 3) +
+  scale_fill_manual(values = c("No Sepsis" = "grey60",
+                               "Sepsis"    = "green")) +
+  labs(x = NULL, y = "Density", fill = NULL,
+       title = "Lab-variable distributions by sepsis status")
+
+
+
+
+
+
+
+
+
 ```
 
 Correlation plot of all variables by similarity of their correlation in Sepsis and Non-Sepsis
@@ -330,6 +401,14 @@ The two classes overlap heavily in the PC1/PC2 projection — this is common in 
 
 **Q10 (2 marks).** What does this tell us about the potential decision boundary our predictive model would have to fit?  Which models easily support this type of boundary?
 
+
+it tells us the sepsis and non-sepsis cases are highly overlapping and a linear decision boundary doesn't work well. 
+
+Random forests and XGBoost may support well.
+
+
+
+
 ---
 
 ## 4 Feature Engineering
@@ -343,7 +422,8 @@ add_features <- function(df) {
   df |>
     mutate(
       pulse_pressure  = SBP - DBP,
-      bun_creat_ratio = BUN / Creatinine,  # > 20 suggests pre-renal AKI
+      bun_creat_ratio = BUN / Creatinine,# > 20 suggests pre-rena l AKI
+      shock_index     = HR / SBP,         
       age_group = cut(Age,
                       breaks = c(-1, 40, 65, 80, 120),
                       labels = c("<=40", "41-65", "66-80", "80+"))
@@ -397,6 +477,14 @@ Now let's specify our 3 models:
 Each of these has several hyperparameters (parts of the model we don't directly learn from the data during fitting; instead we choose them before fitting and select the best values by cross-validation). Marking a hyperparameter with `tune()` is a placeholder that says "leave this blank for now — we'll fill it in during the tuning step." The values will later be chosen by tune_grid() based on cross-validated performance on the training folds.
 
 **Q12 4 marks**: Using R's documentation (e.g., `?logistic_reg`) look up and briefly explain each of the hyperparamters we are tuning in cross-validation for each of the 3 models:s
+
+
+Random Forest, min_n is the minimum number of observations allowed in a terminal node.
+
+
+XGBoost, tree_depth is the maximum depth of each tree, learn_rate is the step size used when adding each tree, loss_reduction is the  minimum loss improvement required to split a node, sample_size is the fraction of training observations sampled for each tree, min_n is the minimum number of observations required in a node. it controls tree complexity
+
+Logistic Regression, penalty is the amount of regularisation applied to the model coefficients, mixture is the balance between L1 and L2 regularisation
 
 ```{r model-spec}
 glm_spec <- logistic_reg(penalty = tune(), mixture = tune()) |>
@@ -468,6 +556,14 @@ autoplot(tuned, metric = "pr_auc", select_best = TRUE) +
 Is the gap between the best and worst model large relative to the standard errors?
 What does that suggest about model selection here?
 
+
+The logistic regression model achieves the highest cross-validated PR-AUC.
+the gap is not large because there is overlap
+
+it suggests we should also take uncertainty, calibration etc into consideration not only PR-AUC.
+
+
+
 ```{r}
 rank_results(tuned, rank_metric = "pr_auc", select_best = TRUE) |>
   filter(.metric %in% c("pr_auc", "brier_class", "accuracy", "sensitivity", "specificity")) |>
@@ -475,6 +571,26 @@ rank_results(tuned, rank_metric = "pr_auc", select_best = TRUE) |>
 ```
 
 **Q14 (3 marks).** By summarising and comparing the metrics output by this code, describe how each model performed relative to one another.
+
+
+Logistic regression performed best with highest pr-auc and lowerst brier score and accuracy and sensitivity is also highest
+
+random forest is the second best.its pr-auc is lower than logistic but higher than XGBoost.
+
+XGBoost is the third best. its accuracy, pr-auc and specificity are all lowerst.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 
@@ -516,6 +632,8 @@ preds |>
 
 **Q15 (1 marks).** How many times were true sepsis cases classified as non-sepsis in the test set? Is this more or less than the correct sepsis predictions?
 
+18. it is more than the number of correct sepsis prediction(11).
+
 ```{r conf-matrix}
 preds |>
   conf_mat(truth = SepsisLabel, estimate = .pred_class) |>
@@ -533,40 +651,25 @@ preds |>
 Now let's investigate whether the model work equally well/badly across patient groups?
 
 ```{r subgroup-auc, fig.height = 3.5}
-errors <- augment(final_fit)
 
-subgroup_auc <- function(df, group_var) {
-  df |>
-    group_by() |>
-    filter(n_distinct(SepsisLabel) == 2) |>
-    roc_auc(truth = SepsisLabel, .pred_Sepsis,
-            event_level = "second") |>
-    select(, .estimate)
-}
-
-overall_auc <- collect_metrics(final_fit) |>
-  filter(.metric == "pr_auc") |>
-  pull(.estimate)
-
-bind_rows(
-  errors |> subgroup_auc(Gender)    |> rename(subgroup = 1) |>
-    mutate(subgroup = as.character(subgroup), group = "Sex"),
-  errors |> subgroup_auc(age_group) |> rename(subgroup = 1) |>
-    mutate(subgroup = as.character(subgroup), group = "Age group")
-) |>
-  ggplot(aes(reorder(subgroup, .estimate), .estimate, fill = group)) +
-  geom_col() +
-  geom_hline(yintercept = overall_auc, linetype = 2, colour = "grey40") +
-  coord_flip() +
-  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
-  labs(x = NULL, y = "PR-AUC",
-       title = "Subgroup PR-AUC",
-       subtitle = "Dashed line = overall test AUC") +
-  theme(legend.position = "none")
 ```
 
 **Q15 (2 marks).** Is there a subgroup where the model performs noticeably worse than the overall PR-AUC?
 Suggest one data-driven reason and one clinical reason that could explain the gap.
+
+
+yes, there is. 
+
+data-driven reason: it might because some subgroups have fewer sepsis positive cases
+
+clinical reason: sepsis symptom is different accross different age groups.
+
+
+
+
+
+
+
 
 ### 7.2 Variable importance
 
@@ -597,6 +700,9 @@ importance_tbl |>
 **Q16 (2 marks).** Compare the top 3 most important variables to the three predictors you identified in Q1.
 Do they match? Write one sentence about any variable that surprised you.
 
+
+they match. 
+
 ---
 
 ## 8 Discussion
@@ -605,6 +711,19 @@ Do they match? Write one sentence about any variable that surprised you.
 
 - What is the single biggest limitation of this analysis (consider the label definition, the static sampling approach, generalisability to other hospitals, etc.)?
 - Would you recommend deploying a model trained this way in a real ICU? If yes, under what monitoring conditions? If no, what would need to change first?
+
+
+the single biggest limitation of this analysis is the data is only from 2 us hospitals and may not applicable to other hospitals or countries. 
+
+i would not recommend. we need to get data from more different hospitals.
+
+
+
+
+
+
+
+
 
 ---
 
